@@ -67,7 +67,7 @@ export default function BetTracker() {
   }, [])
 
   const [sortField, setSortField] = useState<SortField>('date')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [sportFilter, setSportFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
@@ -119,7 +119,7 @@ export default function BetTracker() {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortField(field)
-      setSortDirection('asc')
+      setSortDirection(field === 'date' ? 'desc' : 'asc')
     }
   }
 

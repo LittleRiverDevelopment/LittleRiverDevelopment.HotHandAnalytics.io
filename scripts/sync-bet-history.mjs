@@ -29,6 +29,22 @@ const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export
 // at this anchor and rolling forward whenever the month number decreases (e.g. Dec -> Jan).
 const TRACKER_START_YEAR = 2026
 
+// The published Bets tab is the source of truth, but it is updated by hand.
+// If a row is still marked Open after the games have final scores, overlay the
+// graded result here so the site does not stay stale until the next sheet edit.
+// Drop an entry once the sheet itself has Status / Units W/L / Running Total filled in.
+export const SETTLEMENT_OVERRIDES = [
+  {
+    date: '2026-09-06',
+    descriptionIncludes: 'Washington ML',
+    wl: -1,
+    // Washington 24-10 vs WSU (ML W)
+    // Ole Miss 41-38 vs Louisville (ML W)
+    // Wisconsin 13-41 vs Notre Dame (lost by 28 → +27.5 L)
+    // 3-leg parlay loses; 1u at +140 → -1u
+  },
+]
+
 const MONTHS = {
   Jan: 1, January: 1,
   Feb: 2, February: 2,
@@ -124,7 +140,7 @@ function cleanDescription(desc) {
     .trim()
 }
 
-function parseBetSheetCsv(csvText) {
+export function parseBetSheetCsv(csvText) {
   const rows = parseCsv(csvText)
   const dataRows = rows.slice(1).filter(r => r.some(c => c.trim() !== ''))
 
@@ -155,13 +171,22 @@ function parseBetSheetCsv(csvText) {
     if (sport === 'ML') sport = 'MLB' // data-entry slip seen in the sheet (e.g. "All-Star NRFI")
     const book = (bookRaw || '').trim()
     const statusText = (statusRaw || '').trim()
-    const wl = parseNum(wlRaw)
+    let wl = parseNum(wlRaw)
     const running = parseNum(runningRaw)
     const tailLink = (tailLinkRaw || '').trim() || undefined
     // Trust the Status column as the source of truth for "still live" — the sheet
     // also writes the literal text "Open" into the W/L and Running Total cells,
     // which parseNum correctly reduces to null rather than a stray "Open" string.
-    const isOpen = statusText.toLowerCase() === 'open'
+    let isOpen = statusText.toLowerCase() === 'open'
+    if (isOpen) {
+      const override = SETTLEMENT_OVERRIDES.find(
+        o => o.date === date && description.includes(o.descriptionIncludes)
+      )
+      if (override) {
+        isOpen = false
+        if (wl === null) wl = override.wl
+      }
+    }
 
     let delta = null
     let cumulativeAfter = cumulative
@@ -276,7 +301,11 @@ async function main() {
   process.exitCode = changed ? 0 : 42
 }
 
-main().catch(err => {
-  console.error(err)
-  process.exit(1)
-})
+const invokedDirectly =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (invokedDirectly) {
+  main().catch(err => {
+    console.error(err)
+    process.exit(1)
+  })
+}

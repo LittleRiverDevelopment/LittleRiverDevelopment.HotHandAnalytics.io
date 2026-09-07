@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "npx --yes tsx --test lib/odds-utils-alt.test.ts"
+    "test": "npx --yes tsx --test lib/odds-utils-alt.test.ts scripts/sync-bet-history.test.mjs"
   },
   "dependencies": {
     "chart.js": "^4.4.1",
